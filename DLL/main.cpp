@@ -1,18 +1,10 @@
 #include <windows.h>
 #include <stdio.h>
 #include "main.h"
-#include <fstream>
+
 #include <string>
 #include <sstream>
 #include "Common.h"
-
-void log(std::string message)
-{
-	std::fstream file("log.log", std::ios::out|std::ios::app);
-	file << message;
-	file << "\n";
-	file.close();
-}
 
 
 typedef int             ( __cdecl *luaL_loadbuffer_t )( lua_State *L, char *buff, size_t size, char *name );
@@ -99,13 +91,28 @@ __declspec(dllexport) void __cdecl StartThread(void)
 
 __declspec(dllexport) void __cdecl InjectLua(const char *lua)
 {
-	DWORD test = GetHandleByProcessName("Mafia2.exe");
-	HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, test);
+	log(lua);
+	DWORD pid = GetHandleByProcessName("Mafia2.exe");
+	if (!pid)
+		return;
+	log("section2");
+	HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
+	if (!hProcess)
+		return;
+	log("section3");
 	HMODULE hLibrary = InjectDll(hProcess, "MafiaDll.dll");
+	if (!hLibrary)
+		return;
+	log("section4");
 	PVOID mem = VirtualAllocEx(hProcess, NULL, strlen(lua) + 1, MEM_COMMIT, PAGE_READWRITE);
+	if (!mem)
+		return;
+	log("section5");
 	WriteProcessMemory(hProcess, mem, (void*)lua, strlen(lua) + 1, NULL);
 	LoadRemoteFunction(hProcess, hLibrary, "MafiaDll.dll", "RunLua", mem);
 	VirtualFreeEx(hProcess, mem, strlen(lua) + 1, MEM_RELEASE);
+	CloseHandle(hProcess);
+	log("section6");
 }
 }
 

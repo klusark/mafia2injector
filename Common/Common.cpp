@@ -1,5 +1,6 @@
 #include "Common.h"
 #include <psapi.h>
+#include <fstream>
 
 #pragma comment(lib, "Psapi.lib")
 
@@ -38,7 +39,7 @@ DWORD GetHandleByProcessName(const std::string &name)
 			{
 				GetModuleBaseName( hProcess, hMod, szProcessName, sizeof(szProcessName)/sizeof(TCHAR) );
 			}
-			if (strcmp(szProcessName, name.c_str()) == 0){
+			if (strcmp(ToLower(szProcessName).c_str(), ToLower(name).c_str()) == 0){
 				result = processID;
 				break;
 			}
@@ -52,6 +53,24 @@ DWORD GetHandleByProcessName(const std::string &name)
 	return result;
 }
 
+std::string ToLower(const std::string &str)
+{
+	std::string output;
+	int len = str.length();
+	for(int i = 0; i < len; ++i){
+		output += tolower(str[i]);
+	}
+	return output;
+}
+
+void log(std::string message)
+{
+	std::fstream file("log.log", std::ios::out|std::ios::app);
+	file << message;
+	file << "\n";
+	file.close();
+}
+
 HMODULE InjectDll(HANDLE hProcess, const char *DllName)
 {
 	PVOID mem = VirtualAllocEx(hProcess, NULL, strlen(DllName) + 1, MEM_COMMIT, PAGE_READWRITE);
@@ -62,7 +81,7 @@ HMODULE InjectDll(HANDLE hProcess, const char *DllName)
 		CloseHandle(hProcess);
 		return 0;
 	}
-
+	log("section4.1");
 	if (WriteProcessMemory(hProcess, mem, (void*)DllName, strlen(DllName) + 1, NULL) == 0)
 	{
 		fprintf(stderr, "can't write to memory in that pid\n");
@@ -70,7 +89,7 @@ HMODULE InjectDll(HANDLE hProcess, const char *DllName)
 		CloseHandle(hProcess);
 		return 0;
 	}
-
+	log("section4.2");
 	HANDLE hThread = CreateRemoteThread(hProcess, NULL, 0, (LPTHREAD_START_ROUTINE) GetProcAddress(GetModuleHandle("KERNEL32.DLL"),"LoadLibraryA"), mem, 0, NULL);
 	if (hThread == INVALID_HANDLE_VALUE)
 	{
@@ -79,7 +98,7 @@ HMODULE InjectDll(HANDLE hProcess, const char *DllName)
 		CloseHandle(hProcess);
 		return 0;
 	}
-
+	log("section4.3");
 	WaitForSingleObject(hThread, INFINITE);
 
 	HMODULE hLibrary = NULL;
@@ -91,7 +110,7 @@ HMODULE InjectDll(HANDLE hProcess, const char *DllName)
 		CloseHandle(hProcess);
 		return 0;
 	}
-
+	log("section4.4");
 	CloseHandle(hThread);
 	VirtualFreeEx(hProcess, mem, strlen(DllName) + 1, MEM_RELEASE);
 
@@ -104,7 +123,7 @@ HMODULE InjectDll(HANDLE hProcess, const char *DllName)
 			CloseHandle(hProcess);
 			return 0;
 		}
-
+		log("section4.5");
 		WaitForSingleObject(hThread, INFINITE);
 		DWORD error;
 		GetExitCodeThread(hThread, &error);
@@ -115,7 +134,7 @@ HMODULE InjectDll(HANDLE hProcess, const char *DllName)
 		CloseHandle(hProcess);
 		return false;
 	}
-
+	log("section4.6");
 
 	return hLibrary;
 }
