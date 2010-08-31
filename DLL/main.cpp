@@ -4,6 +4,7 @@
 #include <fstream>
 #include <string>
 #include <sstream>
+#include "Common.h"
 
 void log(std::string message)
 {
@@ -20,18 +21,25 @@ luaL_loadbuffer_t               pluaL_loadbuffer = (luaL_loadbuffer_t)0x5C54C0;
 typedef int             ( __cdecl *lua_pcall_t )( lua_State *L, int nargs, int nresults, int errfunc );
 lua_pcall_t                             plua_pcall = (lua_pcall_t)0x5C3870;
 
+void ExecuteLua(const std::string &lua);
+
 void LoadLuaFile(const std::string &name)
 {
 	std::string file = "function dofile (filename)local f = assert(loadfile(filename)) return f() end dofile(\"";
 	file.append(name);
 	file.append("\")");
+	ExecuteLua(file);
+}
+
+void ExecuteLua(const std::string &lua)
+{
 	lua_State* state = GetL();
 	if (!state){
 		log("BadState");
 		return;
 	}
 
-	pluaL_loadbuffer(state, const_cast< char* >(file.c_str()), file.length(), "test");
+	pluaL_loadbuffer(state, const_cast< char* >(lua.c_str()), lua.length(), "test");
 	int lua_loadb_result = plua_pcall( state, 0, LUA_MULTRET, 0 );
 	if( lua_loadb_result != 0 )
 	{
@@ -50,10 +58,10 @@ void LoadLuaFile(const std::string &name)
 	}
 }
 
+
 DWORD WINAPI mainThread( LPVOID lpParam ) {
 	log("thread loaded");
 	bool exec = true;
-	//std::string string = userscript/autoexec.lua\")";
 	while( true ) {
 		Sleep( 2 );
 		for (int i = 0; i < 12; ++i)
@@ -71,10 +79,34 @@ DWORD WINAPI mainThread( LPVOID lpParam ) {
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpReserved) {
 	if( ul_reason_for_call == DLL_PROCESS_ATTACH ) {
 		log("loaded");
-		CreateThread( 0, 0, mainThread, 0, 0, 0 );
+		
 
 	}
 	return TRUE;
+}
+
+extern "C" {
+__declspec(dllexport) void __cdecl RunLua(const char *lua)
+{
+	//log(lua);
+	ExecuteLua(lua);
+}
+
+__declspec(dllexport) void __cdecl StartThread(void)
+{
+	CreateThread( 0, 0, mainThread, 0, 0, 0 );
+}
+
+__declspec(dllexport) void __cdecl InjectLua(const char *lua)
+{
+	DWORD test = GetHandleByProcessName("Mafia2.exe");
+	HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, test);
+	HMODULE hLibrary = InjectDll(hProcess, "MafiaDll.dll");
+	PVOID mem = VirtualAllocEx(hProcess, NULL, strlen(lua) + 1, MEM_COMMIT, PAGE_READWRITE);
+	WriteProcessMemory(hProcess, mem, (void*)lua, strlen(lua) + 1, NULL);
+	LoadRemoteFunction(hProcess, hLibrary, "MafiaDll.dll", "RunLua", mem);
+	VirtualFreeEx(hProcess, mem, strlen(lua) + 1, MEM_RELEASE);
+}
 }
 
 

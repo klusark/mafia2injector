@@ -1,8 +1,7 @@
 glob:*.user
-glob:DLL/Release/*
-glob:Injector/Release/*
 glob:*.opensdf
 glob:*.suo
 glob:Release/*
 glob:ipch/*
 glob:*.sdf
+glob:Debug/*

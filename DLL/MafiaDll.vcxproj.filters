@@ -21,9 +21,15 @@
     <ClInclude Include="main.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\Common\Common.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\Common.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
