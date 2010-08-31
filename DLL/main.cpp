@@ -1,7 +1,6 @@
 #include <windows.h>
 #include <stdio.h>
 #include "main.h"
-
 #include <string>
 #include <sstream>
 #include "Common.h"
@@ -37,15 +36,18 @@ void ExecuteLua(const std::string &lua)
 	{
 		if( LUA_ERRSYNTAX == lua_loadb_result )
 		{
-			log("Error loading Lua code into buffer with  (Syntax Error)");
+			log("Error loading Lua code into buffer with (Syntax Error)");
 		}
 		else if( LUA_ERRMEM == lua_loadb_result )
 		{
-			log("Error loading Lua code into buffer with name (Memory Allocation Error)");
+			log("Error loading Lua code into buffer with (Memory Allocation Error)");
 		}
 		else
 		{
-			log("Error loading Lua code into buffer with name" +lua_loadb_result);
+			std::stringstream ss;
+			ss << "Error loading Lua code into buffer. Error ";
+			ss << lua_loadb_result;
+			log(ss.str());
 		}
 	}
 }
@@ -53,8 +55,7 @@ void ExecuteLua(const std::string &lua)
 
 DWORD WINAPI mainThread( LPVOID lpParam ) {
 	log("thread loaded");
-	bool exec = true;
-	while( true ) {
+	for (;;) {
 		Sleep( 2 );
 		for (int i = 0; i < 12; ++i)
 			if( GetAsyncKeyState( VK_F1+i ) & 1 ) {
@@ -80,7 +81,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpReser
 extern "C" {
 __declspec(dllexport) void __cdecl RunLua(const char *lua)
 {
-	//log(lua);
+	log(lua);
 	ExecuteLua(lua);
 }
 
@@ -93,26 +94,46 @@ __declspec(dllexport) void __cdecl InjectLua(const char *lua)
 {
 	log(lua);
 	DWORD pid = GetHandleByProcessName("Mafia2.exe");
-	if (!pid)
+	if (!pid){
+		log("Could not find process Mafia2.exe");
 		return;
-	log("section2");
+	}
 	HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
-	if (!hProcess)
+	if (!hProcess){
+		std::stringstream ss;
+		ss << "Could not open process ";
+		ss << pid;
+		log(ss.str());
 		return;
-	log("section3");
-	HMODULE hLibrary = InjectDll(hProcess, "MafiaDll.dll");
-	if (!hLibrary)
+	}
+	char dir[256];
+	GetCurrentDirectory(256, dir);
+	std::string fulldir(dir);
+	fulldir += "\\MafiaDll.dll";
+	HMODULE hLibrary = InjectDll(hProcess, fulldir.c_str());
+	if (!hLibrary){
+		log("Could not inject " + fulldir);
+		CloseHandle(hProcess);
 		return;
-	log("section4");
+	}
 	PVOID mem = VirtualAllocEx(hProcess, NULL, strlen(lua) + 1, MEM_COMMIT, PAGE_READWRITE);
-	if (!mem)
+	if (!mem){
+		log("Could not allocate memory");
+		CloseHandle(hProcess);
 		return;
-	log("section5");
-	WriteProcessMemory(hProcess, mem, (void*)lua, strlen(lua) + 1, NULL);
-	LoadRemoteFunction(hProcess, hLibrary, "MafiaDll.dll", "RunLua", mem);
+	}
+	if (WriteProcessMemory(hProcess, mem, (void*)lua, strlen(lua) + 1, NULL) == 0){
+		log("Could not write memory");
+		CloseHandle(hProcess);
+		return;
+	}
+	if (!LoadRemoteFunction(hProcess, hLibrary, "MafiaDll.dll", "RunLua", mem)){
+		log("Could not run lua");
+		CloseHandle(hProcess);
+		return;
+	}
 	VirtualFreeEx(hProcess, mem, strlen(lua) + 1, MEM_RELEASE);
 	CloseHandle(hProcess);
-	log("section6");
 }
 }
 

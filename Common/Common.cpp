@@ -1,6 +1,7 @@
 #include "Common.h"
 #include <psapi.h>
 #include <fstream>
+#include <sstream>
 
 #pragma comment(lib, "Psapi.lib")
 
@@ -58,7 +59,7 @@ std::string ToLower(const std::string &str)
 	std::string output;
 	int len = str.length();
 	for(int i = 0; i < len; ++i){
-		output += tolower(str[i]);
+		output += (char)tolower(str[i]);
 	}
 	return output;
 }
@@ -73,68 +74,75 @@ void log(std::string message)
 
 HMODULE InjectDll(HANDLE hProcess, const char *DllName)
 {
-	PVOID mem = VirtualAllocEx(hProcess, NULL, strlen(DllName) + 1, MEM_COMMIT, PAGE_READWRITE);
+	size_t DllNameLength = strlen(DllName) + 1;
+	PVOID mem = VirtualAllocEx(hProcess, NULL, DllNameLength, MEM_COMMIT, PAGE_READWRITE);
 
 	if (mem == NULL)
 	{
-		fprintf(stderr, "can't allocate memory in that pid\n");
+		log("can't allocate memory in that pid");
 		CloseHandle(hProcess);
 		return 0;
 	}
-	log("section4.1");
-	if (WriteProcessMemory(hProcess, mem, (void*)DllName, strlen(DllName) + 1, NULL) == 0)
+
+	if (WriteProcessMemory(hProcess, mem, (void*)DllName, DllNameLength, NULL) == 0)
 	{
-		fprintf(stderr, "can't write to memory in that pid\n");
-		VirtualFreeEx(hProcess, mem, strlen(DllName) + 1, MEM_RELEASE);
+		log("can't write to memory in that pid\n");
+		VirtualFreeEx(hProcess, mem, DllNameLength, MEM_RELEASE);
 		CloseHandle(hProcess);
 		return 0;
 	}
-	log("section4.2");
+
 	HANDLE hThread = CreateRemoteThread(hProcess, NULL, 0, (LPTHREAD_START_ROUTINE) GetProcAddress(GetModuleHandle("KERNEL32.DLL"),"LoadLibraryA"), mem, 0, NULL);
 	if (hThread == INVALID_HANDLE_VALUE)
 	{
-		fprintf(stderr, "can't create a thread in that pid\n");
-		VirtualFreeEx(hProcess, mem, strlen(DllName) + 1, MEM_RELEASE);
+		log("can't create a thread in that pid\n");
+		VirtualFreeEx(hProcess, mem, DllNameLength, MEM_RELEASE);
 		CloseHandle(hProcess);
 		return 0;
 	}
-	log("section4.3");
+
 	WaitForSingleObject(hThread, INFINITE);
 
 	HMODULE hLibrary = NULL;
 	if (!GetExitCodeThread(hThread, (LPDWORD)&hLibrary))
 	{
-		printf("can't get exit code for thread GetLastError() = %i.\n", GetLastError());
+		std::stringstream ss;
+		ss << "can't get exit code for thread GetLastError() = ";
+		ss << GetLastError();
+		log (ss.str());
 		CloseHandle(hThread);
-		VirtualFreeEx(hProcess, mem, strlen(DllName) + 1, MEM_RELEASE);
+		VirtualFreeEx(hProcess, mem, DllNameLength, MEM_RELEASE);
 		CloseHandle(hProcess);
 		return 0;
 	}
-	log("section4.4");
+
 	CloseHandle(hThread);
-	VirtualFreeEx(hProcess, mem, strlen(DllName) + 1, MEM_RELEASE);
+	VirtualFreeEx(hProcess, mem, DllNameLength, MEM_RELEASE);
 
 	if (hLibrary == NULL)
 	{
 		hThread = CreateRemoteThread(hProcess, NULL, 0, (LPTHREAD_START_ROUTINE) GetProcAddress(GetModuleHandle("KERNEL32.DLL"),"GetLastError"), 0, 0, NULL);
 		if (hThread == INVALID_HANDLE_VALUE)
 		{
-			fprintf(stderr, "LoadLibraryA returned NULL and can't get last error.\n");
+			log ("LoadLibraryA returned NULL and can't get last error.");
 			CloseHandle(hProcess);
 			return 0;
 		}
-		log("section4.5");
+
 		WaitForSingleObject(hThread, INFINITE);
 		DWORD error;
 		GetExitCodeThread(hThread, &error);
 
 		CloseHandle(hThread);
 
-		printf("LoadLibrary return NULL, GetLastError() is %i\n", error);
+		std::stringstream ss;
+		ss << "LoadLibrary return NULL, GetLastError() is ";
+		ss << error;
+		log (ss.str());
 		CloseHandle(hProcess);
 		return false;
 	}
-	log("section4.6");
+
 
 	return hLibrary;
 }

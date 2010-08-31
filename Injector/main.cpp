@@ -1,6 +1,5 @@
 #include <windows.h>
 #include <stdio.h>
-#include <fstream>
 #include "Common.h"
 
 
@@ -29,8 +28,12 @@ int main()
 		return 1;
 	}
 	HMODULE hLibrary = InjectDll(hProcess, "MafiaDll.dll");
-	if (hLibrary)
+	if (hLibrary){
+
 		printf("injected %08x\n", (DWORD)hLibrary);
+	} else {
+		return 1;
+	}
 	LoadRemoteFunction(hProcess, hLibrary, "MafiaDll.dll", "StartThread", 0);
 	
 	CloseHandle(hProcess);
