@@ -1,8 +1,10 @@
 #pragma once
-extern "C" {
+/*extern "C" {
 #include <lua.h>
 //#include <lauxlib.h>
-}
+}*/
+#include "Export.h"
+
 #define SCRIPTMACHINE_MAX 12
 
 class C_ScriptEngine

@@ -6,35 +6,8 @@
 #include "Common.h"
 #include <map>
 #include <vector>
+#include "LuaFunctions.h"
 
-typedef int             ( __cdecl *luaL_loadbuffer_t )( lua_State *L, char *buff, size_t size, char *name );
-luaL_loadbuffer_t		pluaL_loadbuffer;
-
-typedef int             ( __cdecl *lua_pcall_t )( lua_State *L, int nargs, int nresults, int errfunc );
-lua_pcall_t				plua_pcall;
-
-typedef const char *	(__cdecl *lua_tolstring_t) (lua_State *L, int idx, size_t *len);
-lua_tolstring_t			plua_tolstring;
-
-typedef void			(__cdecl *lua_pushcclosure_t) (lua_State *L, lua_CFunction fn, int n);
-lua_pushcclosure_t		plua_pushcclosure;
-
-typedef void			(__cdecl *lua_setfield_t) (lua_State *L, int idx, const char *k);
-lua_setfield_t			plua_setfield;
-
-typedef	int				(__cdecl *lua_gettop_t) (lua_State *L);
-lua_gettop_t			plua_gettop;
-
-typedef	lua_Integer		(__cdecl *lua_tointeger_t) (lua_State *L, int idx);
-lua_tointeger_t			plua_tointeger;
-
-typedef	lua_Integer		(__cdecl *lua_pushinteger_t) (lua_State *L, lua_Integer n);
-lua_pushinteger_t		plua_pushinteger;
-
-
-#define plua_setglobal(L,s)	plua_setfield(L, LUA_GLOBALSINDEX, (s))
-#define plua_pushcfunction(L,f)	plua_pushcclosure(L, (f), 0)
-#define plua_register(L,n,f) (plua_pushcfunction(L, (f)), plua_setglobal(L, (n)))
 
 std::map<char, std::string> keyBinds;
 struct repeatinfo
@@ -66,13 +39,13 @@ void LoadLuaFile(const std::string &name)
 static int bindKey(lua_State *L)
 {
 	lua_State* state = GetL();
-	int numargs = plua_gettop(state);
+	int numargs = lua_gettop(state);
 	if (numargs != 2)
 		return 0;
 	size_t size = 0;
-	const char *key = plua_tolstring(state, 1, &size);
+	const char *key = lua_tolstring(state, 1, &size);
 
-	const char *lua = plua_tolstring(state, 2, &size);
+	const char *lua = lua_tolstring(state, 2, &size);
 	char charkey = key[0];
 	keyBinds[charkey] = std::string(lua);
 
@@ -82,34 +55,34 @@ static int bindKey(lua_State *L)
 static int repeatedCallback(lua_State *L)
 {
 	lua_State* state = GetL();
-	int numargs = plua_gettop(state);
+	int numargs = lua_gettop(state);
 	if (numargs < 2 || numargs > 3)
 		return 0;
 
-	int delta = plua_tointeger(state, 1);
+	int delta = lua_tointeger(state, 1);
 	size_t size = 0;
-	const char *lua = plua_tolstring(state, 2, &size);
+	const char *lua = lua_tolstring(state, 2, &size);
 	repeatinfo test;
 	test.delta = delta;
 	test.lua = lua;
 	if (numargs == 3){
-		int numtimes = plua_tointeger(state, 3);
+		int numtimes = lua_tointeger(state, 3);
 		test.numtimes = numtimes;
 	}
 	test.ID = repeatID++;
 	repeats.push_back(test);
-	plua_pushinteger(state, test.ID);
+	lua_pushinteger(state, test.ID);
 	return 1;
 }
 
 static int killCallback(lua_State *L)
 {
 	lua_State* state = GetL();
-	int numargs = plua_gettop(state);
+	int numargs = lua_gettop(state);
 	if (numargs != 1)
 		return 0;
 
-	int ID = plua_tointeger(state, 1);
+	int ID = lua_tointeger(state, 1);
 	for (unsigned int i = 0; i < repeats.size(); ++i){
 		if (repeats[i].ID == ID){
 			repeats.erase(repeats.begin()+i);
@@ -130,23 +103,15 @@ bool ExecuteLua(const std::string &lua)
 
 	if (!luaRegistered){
 		luaRegistered = true;
-		plua_pcall = (lua_pcall_t)FindPattern(( BYTE* ) "\x55\x8b\xec\x83\xec\x14\x83\x7d\x14\x00\x75\x09\xc7\x45\xf0\x00", "xxxxxxxxxxxxxxxx" );
-		plua_tolstring = (lua_tolstring_t)FindPattern(( BYTE* ) "\x55\x8B\xEC\x51\x8B\x45\x0C\x50\x8B\x4D\x08\x51\xE8\x8F\xF8\xFF", "xxxxxxxxxxxxxxxx" );
-		plua_pushcclosure = (lua_pushcclosure_t)FindPattern(( BYTE* ) "\x55\x8B\xEC\x83\xEC\x10\x8B\x45\x08\x8B\x48\x10\x8B\x55\x08\x8B", "xxxxxxxxxxxxxxxx" );
-		plua_setfield = (lua_setfield_t)FindPattern(( BYTE* ) "\x55\x8B\xEC\x83\xEC\x20\x8B\x45\x0C\x50\x8B\x4D\x08\x51\xE8\xCD", "xxxxxxxxxxxxxxxx" );
-		plua_gettop = (lua_gettop_t)FindPattern(( BYTE* ) "\x55\x8B\xEC\x8B\x45\x08\x8B\x4D\x08\x8B\x40\x08\x2B\x41\x0C\xC1", "xxxxxxxxxxxxxxxx" );
-		pluaL_loadbuffer = (luaL_loadbuffer_t)FindPattern(( BYTE* ) "\x55\x8B\xEC\x83\xEC\x08\x8B\x45\x0C\x89\x45\xF8\x8B\x4D\x10\x89", "xxxxxxxxxxxxxxxx" );
-		plua_tointeger = (lua_tointeger_t)FindPattern(( BYTE* ) "\x55\x8B\xEC\x83\xEC\x14\x8B\x45\x0C\x50\x8B\x4D\x08\x51\xE8\x3D", "xxxxxxxxxxxxxxxx" );
-		pluaL_loadbuffer = (luaL_loadbuffer_t)FindPattern(( BYTE* ) "\x55\x8B\xEC\x83\xEC\x08\x8B\x45\x0C\x89\x45\xF8\x8B\x4D\x10\x89", "xxxxxxxxxxxxxxxx" );
-		plua_pushinteger = (lua_tointeger_t)FindPattern(( BYTE* ) "\x55\x8B\xEC\x51\x8B\x45\x08\x8B\x48\x08\x89\x4D\xFC\xF3\x0F\x2A", "xxxxxxxxxxxxxxxx" );
+		LoadPointers();
 		
-		plua_register(state, "bindKey", bindKey);
-		plua_register(state, "repeatedCallback", repeatedCallback);
-		plua_register(state, "killCallback", killCallback);
+		lua_register(state, "bindKey", bindKey);
+		lua_register(state, "repeatedCallback", repeatedCallback);
+		lua_register(state, "killCallback", killCallback);
 	}
 
-	pluaL_loadbuffer(state, const_cast< char* >(lua.c_str()), lua.length(), "test");
-	int lua_loadb_result = plua_pcall( state, 0, LUA_MULTRET, 0 );
+	luaL_loadbuffer(state, const_cast< char* >(lua.c_str()), lua.length(), "test");
+	int lua_loadb_result = lua_pcall( state, 0, LUA_MULTRET, 0 );
 	if( lua_loadb_result != 0 )
 	{
 		if( LUA_ERRSYNTAX == lua_loadb_result )
@@ -166,7 +131,7 @@ bool ExecuteLua(const std::string &lua)
 			ss << lua_loadb_result;
 			log(ss.str());
 			size_t size = 0;
-			const char *error = plua_tolstring(state, -1, &size);
+			const char *error = lua_tolstring(state, -1, &size);
 			log(error);
 			return false;
 		}
@@ -217,10 +182,36 @@ DWORD WINAPI mainThread( LPVOID lpParam ) {
 	}
 }
 
+typedef bool             ( __cdecl *StartPlugin_t )();
+
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpReserved) {
 	if( ul_reason_for_call == DLL_PROCESS_ATTACH ) {
 		log("loaded");
+		WIN32_FIND_DATA data;
+		HANDLE file = FindFirstFileEx("InjectorPlugins\\*.dll", FindExInfoStandard, &data, FindExSearchNameMatch, 0, 0);
+		if (file != (HANDLE)0xffffffff){
+			do {
+				std::string path = "InjectorPlugins\\";
+				path += data.cFileName;
+				HMODULE lib = LoadLibrary(path.c_str());
+				if (!lib){
+					log("could not load " + path);
+					continue;
+				}
+				StartPlugin_t pStartPlugin = (StartPlugin_t)GetProcAddress(lib, "StartPlugin");
+				if (!pStartPlugin){
+					log("could find StartPlugin in " + path);
+					continue;
+				}
+				if (!pStartPlugin()){
+					log("StartPlugin in " + path + " failed");
+					continue;
+				}
 
+			} while (file && FindNextFile(file, &data));
+		}
+
+		
 	}
 	return TRUE;
 }
