@@ -32,9 +32,13 @@ int main()
 
 		printf("injected %08x\n", (DWORD)hLibrary);
 	} else {
+		log("Could not load library");
 		return 1;
 	}
-	LoadRemoteFunction(hProcess, hLibrary, "MafiaDll.dll", "StartThread", 0);
+	if (!LoadRemoteFunction(hProcess, hLibrary, "MafiaDll.dll", "StartThread", 0)){
+		log("Could not start thread");
+		return 1;
+	}
 	
 	CloseHandle(hProcess);
 	return 0;
