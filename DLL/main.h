@@ -32,12 +32,15 @@ class C_GameScriptEngine
 public:
 	unsigned long            VTable;            //0000
 	C_ScriptHandler*         Handler;         //0004
-
-	/*static C_GameScriptEngine* Singleton()
-	{
-		return ( C_GameScriptEngine* )
-			*reinterpret_cast< unsigned long* >( 0x1AADBC8 );
-	}*/
 };
 
-lua_State* GetL();
+
+lua_State *GetL(C_GameScriptEngine *pEngine = 0);
+
+typedef bool             ( __cdecl *StartPlugin_t )(lua_State *L);
+typedef bool             ( __cdecl *StopPlugin_t )();
+struct Plugin
+{
+	StartPlugin_t pStartPlugin;
+	StopPlugin_t pStopPlugin;
+};

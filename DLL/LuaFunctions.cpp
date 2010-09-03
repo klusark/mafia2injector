@@ -1,5 +1,8 @@
 #include "Export.h"
 #include "Common.h"
+#include <sstream>
+#include "LuaFunctions.h"
+#include "main.h"
 
 typedef int             ( __cdecl *luaL_loadbuffer_t )( lua_State *L, char *buff, size_t size, char *name );
 luaL_loadbuffer_t		pluaL_loadbuffer;
@@ -73,15 +76,69 @@ __declspec(dllexport) void lua_pushinteger(lua_State *L, lua_Integer n)
 }
 
 
-void LoadPointers()
+typedef	lua_State *		(__cdecl *lua_newthread_t) (lua_State *L);
+lua_newthread_t		plua_newthread;
+
+__declspec(dllexport) lua_State *lua_newthread(lua_State *L)
 {
-	plua_pcall = (lua_pcall_t)FindPattern(( BYTE* ) "\x55\x8b\xec\x83\xec\x14\x83\x7d\x14\x00\x75\x09\xc7\x45\xf0\x00", "xxxxxxxxxxxxxxxx" );
-	plua_tolstring = (lua_tolstring_t)FindPattern(( BYTE* ) "\x55\x8B\xEC\x51\x8B\x45\x0C\x50\x8B\x4D\x08\x51\xE8\x8F\xF8\xFF", "xxxxxxxxxxxxxxxx" );
-	plua_pushcclosure = (lua_pushcclosure_t)FindPattern(( BYTE* ) "\x55\x8B\xEC\x83\xEC\x10\x8B\x45\x08\x8B\x48\x10\x8B\x55\x08\x8B", "xxxxxxxxxxxxxxxx" );
-	plua_setfield = (lua_setfield_t)FindPattern(( BYTE* ) "\x55\x8B\xEC\x83\xEC\x20\x8B\x45\x0C\x50\x8B\x4D\x08\x51\xE8\xCD", "xxxxxxxxxxxxxxxx" );
-	plua_gettop = (lua_gettop_t)FindPattern(( BYTE* ) "\x55\x8B\xEC\x8B\x45\x08\x8B\x4D\x08\x8B\x40\x08\x2B\x41\x0C\xC1", "xxxxxxxxxxxxxxxx" );
-	pluaL_loadbuffer = (luaL_loadbuffer_t)FindPattern(( BYTE* ) "\x55\x8B\xEC\x83\xEC\x08\x8B\x45\x0C\x89\x45\xF8\x8B\x4D\x10\x89", "xxxxxxxxxxxxxxxx" );
-	plua_tointeger = (lua_tointeger_t)FindPattern(( BYTE* ) "\x55\x8B\xEC\x83\xEC\x14\x8B\x45\x0C\x50\x8B\x4D\x08\x51\xE8\x3D", "xxxxxxxxxxxxxxxx" );
-	pluaL_loadbuffer = (luaL_loadbuffer_t)FindPattern(( BYTE* ) "\x55\x8B\xEC\x83\xEC\x08\x8B\x45\x0C\x89\x45\xF8\x8B\x4D\x10\x89", "xxxxxxxxxxxxxxxx" );
-	plua_pushinteger = (lua_pushinteger_t)FindPattern(( BYTE* ) "\x55\x8B\xEC\x51\x8B\x45\x08\x8B\x48\x08\x89\x4D\xFC\xF3\x0F\x2A", "xxxxxxxxxxxxxxxx" );
+	return plua_newthread(L);
+}
+
+
+C_GameScriptEngine *gpEngine;
+lua_State* GetL(C_GameScriptEngine *pEngine)
+{
+	if (pEngine == 0)
+		pEngine = gpEngine;
+
+	if( pEngine == NULL ) return NULL;
+	if( pEngine->Handler == NULL ) return NULL;
+	if( pEngine->Handler->Pool == NULL ) return NULL;
+	if( pEngine->Handler->Pool->List == NULL ) return NULL;
+	if( pEngine->Handler->Pool->List[0] == NULL ) return NULL;
+	return pEngine->Handler->Pool->List[0]->L;
+}
+
+void logPointer(std::string name, DWORD pointer)
+{
+	std::stringstream ss;
+	ss << name << " (" << std::hex << pointer << ")";
+	log(ss.str());
+}
+
+#define GetPointerFromPattern(name, pattern) p##name = (name##_t)FindPattern(( BYTE* ) pattern, "xxxxxxxxxxxxxxxx" );\
+	logPointer(#name, (DWORD)p##name);\
+	if(!p##name)return false
+
+bool LoadPointers()
+{
+	GetPointerFromPattern(lua_pcall, "\x55\x8b\xec\x83\xec\x14\x83\x7d\x14\x00\x75\x09\xc7\x45\xf0\x00");
+
+	GetPointerFromPattern(lua_tolstring, "\x55\x8B\xEC\x51\x8B\x45\x0C\x50\x8B\x4D\x08\x51\xE8\x8F\xF8\xFF");
+
+	GetPointerFromPattern(lua_pushcclosure, "\x55\x8B\xEC\x83\xEC\x10\x8B\x45\x08\x8B\x48\x10\x8B\x55\x08\x8B");
+
+	GetPointerFromPattern(lua_setfield, "\x55\x8B\xEC\x83\xEC\x20\x8B\x45\x0C\x50\x8B\x4D\x08\x51\xE8\xCD");
+
+	GetPointerFromPattern(lua_gettop, "\x55\x8B\xEC\x8B\x45\x08\x8B\x4D\x08\x8B\x40\x08\x2B\x41\x0C\xC1");
+
+	GetPointerFromPattern(luaL_loadbuffer, "\x55\x8B\xEC\x83\xEC\x08\x8B\x45\x0C\x89\x45\xF8\x8B\x4D\x10\x89");
+
+	GetPointerFromPattern(lua_tointeger, "\x55\x8B\xEC\x83\xEC\x14\x8B\x45\x0C\x50\x8B\x4D\x08\x51\xE8\x3D");
+
+	GetPointerFromPattern(lua_pushinteger, "\x55\x8B\xEC\x51\x8B\x45\x08\x8B\x48\x08\x89\x4D\xFC\xF3\x0F\x2A");
+
+	GetPointerFromPattern(lua_newthread, "\x55\x8B\xEC\x83\xEC\x08\x8B\x45\x08\x8B\x48\x10\x8B\x55\x08\x8B");
+
+	
+
+
+	unsigned long engine = FindPattern(( BYTE* ) "\xA1\x00\x00\x00\x00\x85\xC0\x75\x22\x6A\x20\xE8\x00\x00\x00\x00\x83\xC4\x04\x85\xC0", "x????xxxxxxx????xxxxx" )+1;
+	gpEngine		= (C_GameScriptEngine *)*( DWORD* )(*( DWORD* ) engine);
+	logPointer("gpEngine", (DWORD)gpEngine);
+	if (!gpEngine)
+		return false;
+
+
+	return true;
 }

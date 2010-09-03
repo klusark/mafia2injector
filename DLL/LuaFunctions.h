@@ -2,6 +2,7 @@
 
 #include "Export.h"
 
-void LoadPointers();
+bool LoadPointers();
 
-int luaL_loadbuffer( lua_State *L, char *buff, size_t size, char *name );
+__declspec(dllexport) int luaL_loadbuffer( lua_State *L, char *buff, size_t size, char *name );
+
