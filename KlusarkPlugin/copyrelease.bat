@@ -1,0 +1,1 @@
+copy Release\KlusarkPlugin.dll "%MAFIAPATH%\InjectorPlugins\KlusarkPlugin.dll" /Y /B

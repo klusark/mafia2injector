@@ -1,0 +1,1 @@
+copy ..\Release\MafiaInjector.exe "%MAFIAPATH%\MafiaInjector.exe" /Y /B

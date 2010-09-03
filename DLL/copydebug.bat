@@ -1,0 +1,1 @@
+copy ..\Debug\MafiaDll.dll "%MAFIAPATH%\MafiaDll.dll" /Y /B

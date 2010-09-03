@@ -1,0 +1,1 @@
+copy Debug\KlusarkPlugin.dll "%MAFIAPATH%\InjectorPlugins\KlusarkPlugin.dll" /Y /B
