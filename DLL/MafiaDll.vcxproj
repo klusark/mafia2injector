@@ -86,12 +86,16 @@
     <ClInclude Include="..\Common\Common.h" />
     <ClInclude Include="Dll/main.h" />
     <ClInclude Include="LuaFunctions.h" />
+    <ClInclude Include="LuaStateManager.h" />
     <ClInclude Include="main.h" />
+    <ClInclude Include="PluginSystem.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Common\Common.cpp" />
     <ClCompile Include="LuaFunctions.cpp" />
+    <ClCompile Include="LuaStateManager.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="PluginSystem.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -157,9 +157,9 @@ bool LoadRemoteFunction(HANDLE hProcess, HMODULE hLibrary, const char *DllName, 
 	if (!pFunction) 
 		return false;
 
-	FARPROC loc =   (FARPROC)((DWORD)pFunction - (DWORD)hLocalLibrary);
+	DWORD loc = ((DWORD)pFunction - (DWORD)hLocalLibrary);
 
-	HANDLE hThread = CreateRemoteThread(hProcess, NULL, 0, (LPTHREAD_START_ROUTINE)((DWORD)hLibrary+(DWORD)loc), mem, 0, NULL);
+	HANDLE hThread = CreateRemoteThread(hProcess, NULL, 0, (LPTHREAD_START_ROUTINE)((DWORD)hLibrary + loc), mem, 0, NULL);
 	WaitForSingleObject(hThread, INFINITE);
 	CloseHandle(hThread);
 	return true;

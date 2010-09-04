@@ -1,9 +1,8 @@
 #pragma once
-/*extern "C" {
-#include <lua.h>
-//#include <lauxlib.h>
-}*/
+
 #include "Export.h"
+#include "PluginSystem.h"
+#include "LuaStateManager.h"
 
 #define SCRIPTMACHINE_MAX 12
 
@@ -37,10 +36,5 @@ public:
 
 lua_State *GetL(C_GameScriptEngine *pEngine = 0);
 
-typedef bool             ( __cdecl *StartPlugin_t )(lua_State *L);
-typedef bool             ( __cdecl *StopPlugin_t )();
-struct Plugin
-{
-	StartPlugin_t pStartPlugin;
-	StopPlugin_t pStopPlugin;
-};
+extern PluginSystem gPluginSystem;
+extern LuaStateManager gLuaStateManager;

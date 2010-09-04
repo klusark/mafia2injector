@@ -6,6 +6,8 @@
 std::map<char, std::string> keyBinds;
 lua_State* state = 0;
 
+bool bEnded = false;
+
 struct repeatinfo
 {
 	repeatinfo()
@@ -26,7 +28,7 @@ bool RepeatThreadStarted = false;
 DWORD WINAPI KeyBindsThread( LPVOID lpParam ) {
 	KeyBindsThreadStarted = true;
 	unsigned int time = 0;
-	for (;;){
+	while (!bEnded){
 		for (auto it = keyBinds.begin(); it != keyBinds.end(); ++it){
 			if (GetAsyncKeyState(it->first) & 1) {
 				ExecuteLua(state, it->second);
@@ -53,6 +55,7 @@ DWORD WINAPI KeyBindsThread( LPVOID lpParam ) {
 		Sleep(1);
 	}
 	KeyBindsThreadStarted = false;
+	return 0;
 }
 
 
@@ -125,6 +128,7 @@ extern "C"{
 	}
 	__declspec(dllexport) bool StopPlugin()
 	{
+		bEnded = true;
 		return true;
 	}
 }

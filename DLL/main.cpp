@@ -7,21 +7,29 @@
 #include <vector>
 #include "LuaFunctions.h"
 
-std::vector <Plugin> plugins;
 
-lua_State *state = 0;
+PluginSystem gPluginSystem;
+LuaStateManager gLuaStateManager;
 
-void LoadLuaFile(const std::string &name)
+
+
+
+bool bEnded = false;
+
+
+void EndThreads()
+{
+	bEnded = true;
+	gPluginSystem.StopPlugins();
+}
+
+void LoadLuaFile(lua_State *L, const std::string &name)
 {
 	std::string file = "function dofile (filename)local f = assert(loadfile(filename)) return f() end dofile(\"";
 	file.append(name);
 	file.append("\")");
-	ExecuteLua(state, file);
+	ExecuteLua(L, file);
 }
-
-void StartPlugins();
-
-
 
 bool ExecuteLua(lua_State *L, const std::string &lua)
 {
@@ -63,94 +71,48 @@ bool ExecuteLua(lua_State *L, const std::string &lua)
 
 void StateChanged(lua_State* nstate)
 {
-	state = lua_newthread(nstate);
-	StartPlugins();
+	//state = lua_newthread(nstate);
+	gPluginSystem.StartPlugins();
 }
 
-void StartPlugins()
-{
-	for (unsigned int i = 0; i < plugins.size(); ++i){
-		plugins[i].pStartPlugin(lua_newthread(state));
-	}
-}
 
-DWORD WINAPI WatcherThread( LPVOID lpParam ) {
-	while (!LoadPointers())
-		Sleep(1000);
 
-	lua_State *lastState = 0;
-	for (;;){
-		lua_State* nstate = GetL();
-		if (nstate != lastState && nstate){
-			StateChanged(nstate);
-			lastState = nstate;
-		}
 
-		Sleep(1000);
-	}
-	return TRUE;
-}
 
 DWORD WINAPI mainThread( LPVOID lpParam ) {
 	log("thread loaded");
 
-	for (;;) {
+	lua_State *threadState = 0;
+
+	while(!bEnded) {
 		Sleep( 1 );
 		for (int i = 0; i < 12; ++i){
 			if( GetAsyncKeyState( VK_F1+i ) & 1 ) {
 				std::stringstream ss;
-				ss<<"userscript/f";
-				ss<<i+1;
-				ss<<".lua";
-				LoadLuaFile(ss.str());
-
+				ss << "userscript/f" << i+1 << ".lua";
+				if (!gLuaStateManager.IsStateGood(threadState))
+					threadState = gLuaStateManager.GetState();
+				LoadLuaFile(threadState, ss.str());
 			}
 		}
 	}
+	return 0;
 }
 
 
 
+
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpReserved) {
-	if( ul_reason_for_call == DLL_PROCESS_ATTACH ) {
+	switch (ul_reason_for_call){
+	case DLL_PROCESS_ATTACH:
 		log("loaded");
-		WIN32_FIND_DATA data;
-		HANDLE file = FindFirstFileEx("InjectorPlugins\\*.dll", FindExInfoStandard, &data, FindExSearchNameMatch, 0, 0);
-		if (file != (HANDLE)0xffffffff){
-			do {
-				std::string path = "InjectorPlugins\\";
-				path += data.cFileName;
-				HMODULE lib = LoadLibrary(path.c_str());
-				if (!lib){
-					log("could not load " + path);
-					continue;
-				}
-				Plugin plugin;
-
-				StartPlugin_t pStartPlugin = (StartPlugin_t)GetProcAddress(lib, "StartPlugin");
-				if (!pStartPlugin){
-					log("could find StartPlugin in " + path);
-					continue;
-				}
-				StopPlugin_t pStopPlugin = (StopPlugin_t)GetProcAddress(lib, "StopPlugin");
-				if (!pStopPlugin){
-					log("could find StopPlugin in " + path);
-					continue;
-				}
-				plugin.pStartPlugin = pStartPlugin;
-				plugin.pStopPlugin = pStopPlugin;
-				/*if (!pStartPlugin()){
-					log("StartPlugin in " + path + " failed");
-					continue;
-				}*/
-				plugins.push_back(plugin);
-				log("loaded " + path);
-
-			} while (file && FindNextFile(file, &data));
-		}
-
-
+		gPluginSystem.LoadPlugins();
+		break;
+	case DLL_PROCESS_DETACH:
+		EndThreads();
+		break;
 	}
+
 	return TRUE;
 }
 
@@ -158,13 +120,15 @@ extern "C" {
 	__declspec(dllexport) void __cdecl RunLua(const char *lua)
 	{
 		log(lua);
-		ExecuteLua(state, lua);
+		//TODO: Fix this
+		//ExecuteLua(state, lua);
 	}
 
 	__declspec(dllexport) void __cdecl StartThread(void)
 	{
 		CreateThread( 0, 0, mainThread, 0, 0, 0 );
-		CreateThread( 0, 0, WatcherThread, 0, 0, 0 );
+		gLuaStateManager.StartThread();
+		//CreateThread( 0, 0, WatcherThread, 0, 0, 0 );
 	}
 
 	__declspec(dllexport) bool __cdecl InjectLua(const char *lua)
