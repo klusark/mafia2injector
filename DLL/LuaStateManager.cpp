@@ -48,10 +48,10 @@ DWORD WINAPI LuaStateManager::WatcherThread( LPVOID lpParam ) {
 		
 
 	lua_State *lastState = 0;
-	while(!gLuaStateManager.m_bEnded) {
+	while(!gLuaStateManager->m_bEnded) {
 		lua_State* nstate = GetL();
 		if (nstate != lastState && nstate){
-			gLuaStateManager.StateChanged(nstate);
+			gLuaStateManager->StateChanged(nstate);
 			lastState = nstate;
 		}
 

@@ -2,8 +2,9 @@
 #include <Windows.h>
 #include <map>
 #include <vector>
+#include "main.h"
 
-std::map<char, std::string> keyBinds;
+std::map<unsigned char, std::string> keyBinds;
 lua_State* state = 0;
 
 bool bEnded = false;
@@ -69,8 +70,18 @@ static int bindKey(lua_State *L)
 	const char *key = lua_tolstring(L, 1, &size);
 
 	const char *lua = lua_tolstring(L, 2, &size);
-	char charkey = key[0];
-	keyBinds[charkey] = std::string(lua);
+	unsigned char keyID = 0;
+	bool found = false;
+	for (int i = 0; i < 0xFE && !found; ++i){
+		if (strcmp(key, BindableKeys[i]) == 0){
+			keyID = i;
+			found = true;
+		}
+	}
+	if (!found){
+		//log("Could not find key " + key);
+	}else
+		keyBinds[keyID] = std::string(lua);
 
 	return 0;
 }
@@ -123,6 +134,7 @@ extern "C"{
 		lua_register(state, "bindKey", bindKey);
 		if (!KeyBindsThreadStarted)
 			CreateThread( 0, 0, KeyBindsThread, 0, 0, 0 );
+
 
 		return true;
 	}

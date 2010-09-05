@@ -37,4 +37,4 @@ public:
 lua_State *GetL(C_GameScriptEngine *pEngine = 0);
 
 extern PluginSystem gPluginSystem;
-extern LuaStateManager gLuaStateManager;
+extern LuaStateManager *gLuaStateManager;

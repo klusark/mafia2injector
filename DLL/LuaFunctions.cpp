@@ -4,6 +4,37 @@
 #include "LuaFunctions.h"
 #include "main.h"
 
+
+bool bDataCompare( const BYTE* pData, const BYTE* bMask, const char* szMask )
+{
+    for( ; *szMask; ++szMask, ++pData, ++bMask )
+	{
+        if( *szMask == 'x' && *pData != *bMask ) 
+		{
+            return false;
+		}
+	}
+    return ( *szMask ) == NULL;
+}
+
+DWORD FindPattern( DWORD dwAddress, DWORD dwLen, BYTE *bMask, char* szMask )
+{
+    for( DWORD i=0; i < dwLen; i++ )
+	{
+		if( bDataCompare( ( BYTE* )( dwAddress + i ), bMask, szMask) )
+		{
+			return ( DWORD )( dwAddress + i );
+		}
+	}
+    return 0;
+}
+
+DWORD FindPattern(BYTE *bMask, char* szMask )
+{
+	return FindPattern((DWORD)GetModuleHandle( 0 ), 0xFFFFFFFF, bMask, szMask);
+}
+
+
 typedef int             ( __cdecl *luaL_loadbuffer_t )( lua_State *L, char *buff, size_t size, char *name );
 luaL_loadbuffer_t		pluaL_loadbuffer;
 
@@ -92,7 +123,7 @@ lua_State* GetL(C_GameScriptEngine *pEngine)
 		pEngine = gpEngine;
 
 	if( pEngine == NULL ) return NULL;
-	if( pEngine->Handler == NULL ) return NULL;
+	if( pEngine->Handler == NULL || pEngine->Handler == (C_ScriptHandler* )0xF) return NULL;
 	if( pEngine->Handler->Pool == NULL ) return NULL;
 	if( pEngine->Handler->Pool->List == NULL ) return NULL;
 	if( pEngine->Handler->Pool->List[0] == NULL ) return NULL;

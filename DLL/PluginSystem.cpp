@@ -48,7 +48,7 @@ void PluginSystem::LoadPlugins()
 void PluginSystem::StartPlugins()
 {
 	for (unsigned int i = 0; i < plugins.size(); ++i){
-		plugins[i].pStartPlugin(gLuaStateManager.GetState());
+		plugins[i].pStartPlugin(gLuaStateManager->GetState());
 	}
 }
 

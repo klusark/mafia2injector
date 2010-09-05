@@ -83,7 +83,6 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="..\Common\Common.h" />
     <ClInclude Include="Dll/main.h" />
     <ClInclude Include="LuaFunctions.h" />
     <ClInclude Include="LuaStateManager.h" />
@@ -91,7 +90,6 @@
     <ClInclude Include="PluginSystem.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\Common\Common.cpp" />
     <ClCompile Include="LuaFunctions.cpp" />
     <ClCompile Include="LuaStateManager.cpp" />
     <ClCompile Include="main.cpp" />

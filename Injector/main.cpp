@@ -35,10 +35,10 @@ int main()
 		log("Could not load library");
 		return 1;
 	}
-	if (!LoadRemoteFunction(hProcess, hLibrary, "MafiaDll.dll", "StartThread", 0)){
+	/*if (!LoadRemoteFunction(hProcess, hLibrary, "MafiaDll.dll", "StartThread", 0)){
 		log("Could not start thread");
 		return 1;
-	}
+	}*/
 	
 	CloseHandle(hProcess);
 	return 0;

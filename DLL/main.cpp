@@ -6,13 +6,20 @@
 #include "Common.h"
 #include <vector>
 #include "LuaFunctions.h"
+#include <fstream>
 
 
 PluginSystem gPluginSystem;
-LuaStateManager gLuaStateManager;
+LuaStateManager *gLuaStateManager = new LuaStateManager();
 
 
-
+void log(std::string message)
+{
+	std::fstream file("log.log", std::ios::out|std::ios::app);
+	file << message;
+	file << "\n";
+	file.close();
+}
 
 bool bEnded = false;
 
@@ -21,6 +28,7 @@ void EndThreads()
 {
 	bEnded = true;
 	gPluginSystem.StopPlugins();
+	delete gLuaStateManager;
 }
 
 void LoadLuaFile(lua_State *L, const std::string &name)
@@ -69,15 +77,6 @@ bool ExecuteLua(lua_State *L, const std::string &lua)
 	return true;
 }
 
-void StateChanged(lua_State* nstate)
-{
-	//state = lua_newthread(nstate);
-	gPluginSystem.StartPlugins();
-}
-
-
-
-
 
 DWORD WINAPI mainThread( LPVOID lpParam ) {
 	log("thread loaded");
@@ -90,8 +89,8 @@ DWORD WINAPI mainThread( LPVOID lpParam ) {
 			if( GetAsyncKeyState( VK_F1+i ) & 1 ) {
 				std::stringstream ss;
 				ss << "userscript/f" << i+1 << ".lua";
-				if (!gLuaStateManager.IsStateGood(threadState))
-					threadState = gLuaStateManager.GetState();
+				if (!gLuaStateManager->IsStateGood(threadState))
+					threadState = gLuaStateManager->GetState();
 				LoadLuaFile(threadState, ss.str());
 			}
 		}
@@ -100,13 +99,20 @@ DWORD WINAPI mainThread( LPVOID lpParam ) {
 }
 
 
-
+void StartThreads()
+{		
+	CreateThread( 0, 0, mainThread, 0, 0, 0 );
+	gLuaStateManager->StartThread();
+}
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpReserved) {
 	switch (ul_reason_for_call){
 	case DLL_PROCESS_ATTACH:
 		log("loaded");
 		gPluginSystem.LoadPlugins();
+#ifndef HYPERZ
+		StartThreads();
+#endif
 		break;
 	case DLL_PROCESS_DETACH:
 		EndThreads();
@@ -115,19 +121,19 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpReser
 
 	return TRUE;
 }
-
+#ifdef HYPERZ
 extern "C" {
 	__declspec(dllexport) void __cdecl RunLua(const char *lua)
 	{
 		log(lua);
-		//TODO: Fix this
-		//ExecuteLua(state, lua);
+		gPluginSystem.StartPlugins();
+		ExecuteLua(gLuaStateManager->GetState(), lua);
+		gPluginSystem.StopPlugins();
 	}
 
 	__declspec(dllexport) void __cdecl StartThread(void)
 	{
-		CreateThread( 0, 0, mainThread, 0, 0, 0 );
-		gLuaStateManager.StartThread();
+		StartThreads();
 		//CreateThread( 0, 0, WatcherThread, 0, 0, 0 );
 	}
 
@@ -178,6 +184,6 @@ extern "C" {
 		return true;
 	}
 }
-
+#endif
 
 
